@@ -214,6 +214,8 @@ v_legs = no_main[['id','road_leg','travel_time','route']].join(trips, lsuffix="_
 
 trips = pd.DataFrame(pd.concat([r_legs,v_legs], )).sort_index()
 
+trips.to_pickle(os.path.join(output_folder,"final_trip_file"))
+
 # from shapely.geometry import Point, LineString
 # test["timediff"] = test["travel_time"]-test["travel_time_sp"]
 # error = test[test.timediff > 5000 ][['departure_time', 'arrival_time',"origin","destination","travel_time","travel_time_sp"]]  
