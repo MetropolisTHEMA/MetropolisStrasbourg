@@ -119,10 +119,8 @@ DEFAULT_SPEED = {
 
 #  NETWORK LOADING INTO METRO FORMAT
 def valid_way(way):
-    try:
-        return way.tags.get("access") != "no" and len(way.nodes) > 1 and way.tags.get("highway") in VALID_HIGHWAYS
-    except:
-        return len(way.nodes) > 1 and way.tags.get("highway") in VALID_HIGHWAYS
+    has_access = not "access" in way.tags or way.tags["access"] == "yes"
+    return has_access and len(way.nodes) > 1 and way.tags.get("highway") in VALID_HIGHWAYS
 
 
 class NodeReader(osmium.SimpleHandler):
