@@ -82,15 +82,18 @@ def final_trip_file(res, no_main, trips):
       trips["O_connect_time"]=trips["O_connect_dist"]/(30/3.6)
       trips["D_connect_time"]=trips["D_connect_dist"]/(30/3.6)
 
-      trips = trips[['person_id', 'trip_index', 'departure_time', 'arrival_time', 'mode',
-                  'preceding_purpose', 'following_purpose', 'purpose', 'travel_time',
-                  'O_connect_time', 'D_connect_time']]
+      # trips = trips[['person_id', 'trip_index', 'departure_time', 'arrival_time', 'mode',
+      #             'preceding_purpose', 'following_purpose', 'purpose', 'travel_time',
+      #             'O_connect_time', 'D_connect_time']]
 
-      r_legs=res[['id','road_leg','travel_time','route', 
-                  'O_node', 'D_node', 
-                  'start_access_time', 'finish_access_time',  
-                  'start_access', 'finish_access', 
-                  'only_main', 'has_residential']].join(trips, lsuffix="_sp")
+      r_legs=res.join(trips, lsuffix="_sp")
+      
+      # r_legs=res[['id','road_leg','travel_time','route', 
+      #             'O_node', 'D_node', 
+      #             'start_access_time', 'finish_access_time',  
+      #             'start_access', 'finish_access', 
+      #             'only_main', 'has_residential']].join(trips, lsuffix="_sp")
+
       r_legs["O_access_time"]=r_legs["O_connect_time"]+r_legs["start_access_time"]
       r_legs["D_access_time"]=r_legs["D_connect_time"]+r_legs["finish_access_time"]
 

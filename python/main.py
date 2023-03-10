@@ -34,6 +34,11 @@ output_folder = "FINAL_strasbourg_outputs"
 METRIC_CRS="EPSG:2154"
 WORLD_CRS="EPSG:4326"
 
+# Returns only trips whose departure time is later than this value (in seconds after midnight).
+START_TIME = 3.0 * 3600.0
+# Returns only trips whose arrival time is earlier than this value (in seconds after midnight).
+END_TIME = 10.0 * 3600.0
+
 #Shortest path executable
 scriptdir = r"C:\Users\theot\OneDrive\TheseMaster\Datapipeline\ShortestPath"
 TCHscript = "compute_travel_times"
@@ -69,28 +74,32 @@ if not os.path.exists(OSM_FILE):
     print("File not found: {}".format(OSM_FILE))
     sys.exit(0)
 
-h = script0.NodeReader()
+try:
+    edges = pk.load(open(EDGE_FILE,"rb"))
+    nodes = pk.load(open(NODE_FILE,"rb"))
+except:
+    h = script0.NodeReader()
 
-print("Finding nodes...")
-h.apply_file(OSM_FILE, locations=True, idx="flex_mem")
+    print("Finding nodes...")
+    h.apply_file(OSM_FILE, locations=True, idx="flex_mem")
 
-g = script0.Writer(h.nodes)
+    g = script0.Writer(h.nodes)
 
-print("Reading OSM data...")
-g.apply_file(OSM_FILE, locations=True, idx="flex_mem")
+    print("Reading OSM data...")
+    g.apply_file(OSM_FILE, locations=True, idx="flex_mem")
 
-print("Post-processing...")
-g.post_process(simplify=False)
+    print("Post-processing...")
+    g.post_process(simplify=False)
 
-print("Found {} nodes and {} edges.".format(len(g.nodes), len(g.edges)))
+    print("Found {} nodes and {} edges.".format(len(g.nodes), len(g.edges)))
 
-print("Writing edges...")
-g.write_edges(EDGE_FILE)
+    print("Writing edges...")
+    g.write_edges(EDGE_FILE)
 
-print("Writing nodes...")
-g.write_nodes(NODE_FILE)
+    print("Writing nodes...")
+    g.write_nodes(NODE_FILE)
 
-print("Done!")
+    print("Done!")
 
 log["script 0 nodes count"] = len(g.nodes)
 log["script 0 edges count"] = len(g.edges)

@@ -12,17 +12,6 @@ tqdm.pandas()
 chronos=time.time()
 chronos1A=time.time()
 
-#tripspath = r"D:\OneDrive\TheseMaster\Data\Equasim\output_100%\strasbourg_trips.gpkg"
-#tripspath = r"C:\Users\theot\OneDrive\TheseMaster\Data\Equasim\output_100%\strasbourg_trips.gpkg"
-tripspath = r"C:\Users\theot\OneDrive\TheseMaster\Data\Equasim\ile_de_france_trips.gpkg"
-
-edgespath = "paris_outputs/graphbuilder/raw_edges"
-
-outputdirpath = "paris_outputs/OD_to_network/"
-
-if not os.path.isdir(outputdirpath):
-    os.makedirs(outputdirpath)
-
 # Returns only trips whose departure time is later than this value (in seconds after midnight).
 START_TIME = 3.0 * 3600.0
 # Returns only trips whose arrival time is earlier than this value (in seconds after midnight).
@@ -52,7 +41,7 @@ CONNECTED_ROADTYPES = {
 
 
 #selecting the trips interesting for us
-def prepare_trips(tripspath, outputdirpath):
+def prepare_trips(tripspath, outputdirpath, START_TIME=START_TIME, END_TIME=END_TIME):
     print("Reading trips")
     try:
         trips = pk.load(open(os.path.join(outputdirpath, "car_time_trips"),"rb"))
@@ -166,6 +155,18 @@ def nearjoin(gdf, edges, sheetname, CONNECTED_ROADTYPES=CONNECTED_ROADTYPES ,sav
 
 if __name__ == "__main__":
     chronos1A=time.time()
+
+        
+    #tripspath = r"D:\OneDrive\TheseMaster\Data\Equasim\output_100%\strasbourg_trips.gpkg"
+    #tripspath = r"C:\Users\theot\OneDrive\TheseMaster\Data\Equasim\output_100%\strasbourg_trips.gpkg"
+    tripspath = r"C:\Users\theot\OneDrive\TheseMaster\Data\Equasim\ile_de_france_trips.gpkg"
+
+    edgespath = "paris_outputs/graphbuilder/raw_edges"
+
+    outputdirpath = "paris_outputs/OD_to_network/"
+
+    if not os.path.isdir(outputdirpath):
+        os.makedirs(outputdirpath)
 
     trips, O , D = prepare_trips(tripspath)
     edges=read_edges(edgespath, outputdirpath)

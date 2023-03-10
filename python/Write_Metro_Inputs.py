@@ -8,9 +8,9 @@ import geopandas as gpd
 
 #%% PARAMETERS
 # Path to the directory where the node and edge files are stored.
-ROAD_NETWORK_DIR = "./output/osm_network/"
+ROAD_NETWORK_DIR = "./output/OSM_to_edges_nodes"
 # Path to the file where the trip data is stored.
-TRIPS_FILE = "./output/trips_filtered.csv"
+TRIPS_FILE = "./output/ShortestPath/final_results.csv"
 # Path to the directory where the simulation input should be stored.
 OUTPUT_DIR = "./output/next_run/"
 # Vehicle length in meters.
@@ -282,12 +282,16 @@ def write_data(OUTPUT_DIR,road_network,agents,PARAMETERS=PARAMETERS):
 if __name__ == "__main__":
         
     print("Reading edges")
-    edges = gpd.read_file(os.path.join(ROAD_NETWORK_DIR, "edges.fgb"))
+    edges = gpd.read_file(os.path.join(ROAD_NETWORK_DIR, "raw_edges.geojson"))
     
     print("Reading trips")
     trips = pd.read_csv(TRIPS_FILE)
 
     road_network = generate_road_network(edges[edges["main_network"]])
+
+    agents = generate_agents(trips)
+
+    write_data(OUTPUT_DIR, road_network, agents, PARAMETERS)
 
 
 # %%

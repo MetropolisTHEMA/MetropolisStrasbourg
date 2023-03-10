@@ -8,19 +8,6 @@ import geopandas as gpd
 import pickle as pk
 from shapely.geometry import Point, LineString
 
-p="paris_"
-
-chronos2=time.time()
-
-# Input files
-tripfile = p+"outputs/OD_to_network/trips_OD"
-edgefile = p+"outputs/graphbuilder/raw_edges"
-nodefile = p+"outputs/graphbuilder/raw_nodes"
-#output directory
-outdir = p+"outputs/shortestspath"
-if not os.path.isdir(outdir):
-    os.makedirs(outdir)
-
 #use the right projection for metric operations
 METRIC_CRS = "EPSG:2154"
 
@@ -195,6 +182,21 @@ def run_shortestpath(outdir, scriptdir, TCHscript):
     print(f"Saved in {outdir}")
 
 if __name__=="__main__":
+        
+    p="paris_"
+
+    chronos2=time.time()
+
+    # Input files
+    tripfile = p+"outputs/OD_to_network/trips_OD"
+    edgefile = p+"outputs/graphbuilder/raw_edges"
+    nodefile = p+"outputs/graphbuilder/raw_nodes"
+    #output directory
+    outdir = p+"outputs/shortestspath"
+    if not os.path.isdir(outdir):
+        os.makedirs(outdir)
+
+
     chronos2=time.time()
 
     trips, edges = prepare_inputs(outdir, tripfile, edgefile, nodefile, crs=METRIC_CRS)

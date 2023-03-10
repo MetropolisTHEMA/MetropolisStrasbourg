@@ -19,23 +19,6 @@ import networkx as nx
 chronos=time.time()
 chronos0=time.time()
 
-#Path to the OSM network (.pbf):
-OSM_FILE= r"C:\Users\theot\OneDrive\TheseMaster\Datapipeline\ile-de-france-latest.osm.pbf"
-
-
-# OUTPUTS
-
-#Path to the output directory
-OUTDIR = "./paris_outputs/graphbuilder"
-#Data output prefix (leave as "" if none)
-prefix=""
-
-#preparing NODE and EDGE files:
-NODE_FILE = os.path.join(OUTDIR,prefix+"raw_nodes")
-EDGE_FILE = os.path.join(OUTDIR,prefix+"raw_edges")
-
-if not os.path.exists(OUTDIR):
-    os.makedirs(OUTDIR)
 
 # PARAMETERS
 
@@ -538,6 +521,26 @@ class Writer(osmium.SimpleHandler):
 
 
 if __name__ == "__main__":
+
+    
+    #Path to the OSM network (.pbf):
+    OSM_FILE= r"C:\Users\theot\OneDrive\TheseMaster\Datapipeline\ile-de-france-latest.osm.pbf"
+
+
+    # OUTPUTS
+
+    #Path to the output directory
+    OUTDIR = "./paris_outputs/graphbuilder"
+    #Data output prefix (leave as "" if none)
+    prefix=""
+
+    #preparing NODE and EDGE files:
+    NODE_FILE = os.path.join(OUTDIR,prefix+"raw_nodes")
+    EDGE_FILE = os.path.join(OUTDIR,prefix+"raw_edges")
+
+    if not os.path.exists(OUTDIR):
+        os.makedirs(OUTDIR)
+
 
     # File does not exists or is not in the same folder as the script.
     if not os.path.exists(OSM_FILE):
