@@ -12,6 +12,9 @@ tqdm.pandas()
 chronos=time.time()
 chronos1A=time.time()
 
+# Returns only trips whose mode is within the following modes
+# (available values: car, car_passenger, pt, walk, bike).
+MODES = ("car", "car_passenger", "pt", "walk", "bike")
 # Returns only trips whose departure time is later than this value (in seconds after midnight).
 START_TIME = 3.0 * 3600.0
 # Returns only trips whose arrival time is earlier than this value (in seconds after midnight).
@@ -49,13 +52,29 @@ def prepare_trips(tripspath, outputdirpath, START_TIME=START_TIME, END_TIME=END_
         # trips.crs = METRIC_CRS
         # trips.set_geometry("geometry", inplace=True)
     except: 
-        trips = gpd.read_file(tripspath, where=f"mode='car' AND departure_time BETWEEN {START_TIME} AND {END_TIME} ")
-        trips.to_crs(METRIC_CRS, inplace=True)
+        if tripspath.endswith('csv'):
+            trips = pd.read_csv(tripspath)
+            trips = trips.loc[
+                trips['mode'].isin(MODES)
+                & (trips['departure_time'] >= START_TIME)
+                & (trips['arrival_time'] <= END_TIME)
+            ]
+            trips = gpd.GeoDataFrame(trips)
+            print("Creating geometries")
+            trips['origin'] = gpd.GeoSeries.from_xy(trips['x0'], trips['y0'], crs=METRIC_CRS)
+            trips['destination'] = gpd.GeoSeries.from_xy(trips['x1'], trips['y1'], crs=METRIC_CRS)
+        else:
+            trips = gpd.read_file(
+                tripspath,
+                where=f"mode IN {MODES} AND departure_time BETWEEN {START_TIME} AND {END_TIME} "
+            )
+            trips.to_crs(METRIC_CRS, inplace=True)
+            print("Reading origin / destination points")
+            trips["origin"] = trips.geometry.apply(lambda g: Point(g.coords[0]))
+            trips["destination"] = trips.geometry.apply(lambda g: Point(g.coords[-1]))
         trips["trip_index"]=trips.index
         trips["purpose"] = trips["preceding_purpose"] + " -> " + trips["following_purpose"]
         trips["travel_time"] = trips["arrival_time"] - trips["departure_time"]
-        trips["origin"] = trips.geometry.apply(lambda g: Point(g.coords[0]))
-        trips["destination"] = trips.geometry.apply(lambda g: Point(g.coords[-1]))
         trips.drop(
             columns=[
                 "preceding_activity_index",
@@ -63,8 +82,13 @@ def prepare_trips(tripspath, outputdirpath, START_TIME=START_TIME, END_TIME=END_
                 "is_first",
                 "is_last",
                 "geometry",
+                "x0",
+                "y0",
+                "x1",
+                "y1",
             ],
             inplace=True,
+            errors='ignore',
         )
         trips.to_pickle(os.path.join(outputdirpath, "car_time_trips"))
             

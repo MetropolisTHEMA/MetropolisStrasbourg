@@ -25,6 +25,13 @@ from matplotlib import pyplot as plt
 #%% PARAMETERS
 #Input files
 OSM_FILE= r"C:\Users\theot\OneDrive\TheseMaster\Datapipeline\alsace-latest.osm.pbf"
+# File where the Eqasim synthetic population trip geopackage is stored.
+# If memory is an issue, run the following command on the geopackage:
+# `ogr2ogr -f "CSV" FILENAME.csv FILENAME.gpkg -sql "SELECT person_id, trip_index, departure_time,
+#  arrival_time, mode, preceding_purpose, following_purpose, ST_X(ST_StartPoint(geom)) AS 'x0'
+#  ST_Y(ST_StartPoint(geom)) AS 'y0', ST_X(ST_EndPoint(geom)) AS 'x1', ST_Y(ST_EndPoint(geom))
+#  AS 'y1' FROM FILENAME"`
+# Then specify the path to the CSV file instead of the geopackage file.
 OD_FILE= r"C:\Users\theot\OneDrive\TheseMaster\Data\Equasim\output_100%\strasbourg_trips.gpkg"
 
 #Outputs
@@ -34,6 +41,9 @@ output_folder = "FINAL_strasbourg_outputs"
 METRIC_CRS="EPSG:2154"
 WORLD_CRS="EPSG:4326"
 
+# Returns only trips whose mode is within the following modes
+# (available values: car, car_passenger, pt, walk, bike).
+MODES = ("car", "car_passenger", "pt", "walk", "bike")
 # Returns only trips whose departure time is later than this value (in seconds after midnight).
 START_TIME = 3.0 * 3600.0
 # Returns only trips whose arrival time is earlier than this value (in seconds after midnight).
