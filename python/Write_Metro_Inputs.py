@@ -195,8 +195,8 @@ def generate_agents(trips):
                 leg={"class" : {
                     "type": "Road",
                     "value": {
-                        "origin": trip['O_node'],
-                        "destination": trip['D_node'],
+                        "origin": int(trip['O_node']),
+                        "destination": int(trip['D_node']),
                         "vehicle": 0,
                             }
                     }}
