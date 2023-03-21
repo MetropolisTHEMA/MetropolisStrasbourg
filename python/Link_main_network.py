@@ -88,27 +88,7 @@ def prepare_inputs(outdir, tripfile, edgefile, nodefile, save=False, crs=METRIC_
         if to_remove:
             print('Warning. Removing {} duplicate edges.'.format(len(to_remove)))
             edges.drop(labels=to_remove, inplace=True)
-                
-        # Node ande edge ids should start at 0.
-        print("Index reset")
-        nodes.reset_index(drop=True, inplace=True)
-        edges.reset_index(drop=True, inplace=True)
-        edges["id"]=edges.index
-        #edges.drop(columns="id", inplace=True)
-        node_id_map = nodes["id"].to_frame().reset_index().set_index("id")
-        nodes["id"]=nodes.index
-        edges = edges.merge(node_id_map, left_on="source", right_index=True).drop(columns=["source"]).rename(
-            columns={"index": "source"}
-        )
-        edges = edges.merge(node_id_map, left_on="target", right_index=True).drop(columns=["target"]).rename(
-            columns={"index": "target"}
-        ).sort_index()
-        trips = trips.merge(node_id_map, left_on="O_connect", right_index=True).drop(columns=["O_connect"]).rename(
-            columns={"index": "O_connect"}
-        )
-        trips = trips.merge(node_id_map, left_on="D_connect", right_index=True).drop(columns=["D_connect"]).rename(
-            columns={"index": "D_connect"}
-        ).sort_index()
+
 
 
         edges["traveltime"]=(edges["length"]/edges["speed"])*3600
