@@ -23,23 +23,23 @@ chronos0=time.time()
 # PARAMETERS
 
 #Setting which links to take into the model or not (source: https://wiki.openstreetmap.org/wiki/FR:Key:highway?uselang=fr)
-VALID_HIGHWAYS = (
-    "motorway",
-    "trunk",
-    "primary",
-    "secondary",
-    "motorway_link",
-    "trunk_link",
-    "primary_link",
-    "secondary_link",
-    "tertiary",
-    "tertiary_link",
-    'residential',
-    'living_street',
-    'unclassified',
-    'road',
-    'service',
-)
+CONNECTABLE = {
+    "motorway" :False ,
+    "trunk":False,
+    "primary":True ,
+    "secondary":True ,
+    "motorway_link":False ,
+    "trunk_link":False ,
+    "primary_link":True ,
+    "secondary_link":True ,
+    "tertiary":True ,
+    "tertiary_link":True ,
+    'residential':True ,
+    'living_street':True ,
+    'unclassified':True ,
+    'road': True ,
+    'service': True ,
+}
 
 # Main network (used inside METRO) and residential network (used for network conection)
 MAIN_NETWORK = {
@@ -57,7 +57,6 @@ MAIN_NETWORK = {
     "tertiary_link": True,
     "living_street": False,
     "road": True,
-    "track":False,
     "service": False    
 }
 
@@ -353,170 +352,6 @@ class Writer(osmium.SimpleHandler):
                 )
             )
 
-    def post_process(self, simplify=False):
-        node_collection = FeatureCollection(
-            list(self.nodes.values()),
-            crs={"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
-        )
-        edge_collection = FeatureCollection(
-            self.edges,
-            crs={"type": "name", "properties": {"name": "urn:ogc:def:crs:OGC:1.3:CRS84"}},
-        )
-        nodes = gpd.GeoDataFrame.from_features(node_collection)
-        edges = gpd.GeoDataFrame.from_features(edge_collection)
-
-        G = nx.DiGraph()
-        G.add_edges_from(
-            map(
-                lambda f: (f["properties"]["source"], f["properties"]["target"], f["properties"]),
-                edges.iterfeatures(),
-            )
-        )
-        # Find the nodes of the largest weakly connected component.
-        connected_nodes = max(nx.strongly_connected_components(G), key=len)
-        if len(connected_nodes) < G.number_of_nodes():
-            print(
-                "Warning: discarding {} nodes disconnected from the main graph".format(
-                    G.number_of_nodes() - len(connected_nodes)
-                )
-            )
-            G.remove_nodes_from(set(G.nodes).difference(connected_nodes))
-            edges = edges.loc[edges["source"].isin(connected_nodes)]
-            edges = edges.loc[edges["target"].isin(connected_nodes)]
-
-        edges = self.count_neighbors(edges)
-        if simplify:
-            nodes, edges = self.simplify(nodes, edges)
-
-        # Removing duplicate edges.
-        st_count = edges.groupby(['source', 'target'])['id'].count()
-        to_remove = set()
-        for s, t in st_count.loc[st_count > 1].index:
-            dupl = edges.loc[(edges['source'] == s) & (edges['target'] == t)]
-            # Keep only the edge with the smallest travel time.
-            tt = dupl['length'] / (dupl['speed'] / 3.6)
-            id_min = tt.index[tt.argmin()]
-            for i in dupl.index:
-                if i != id_min:
-                    to_remove.add(i)
-        if to_remove:
-            print('Warning. Removing {} duplicate edges.'.format(len(to_remove)))
-            edges.drop(labels=to_remove, inplace=True)
-        
-        self.nodes = nodes[nodes["id"].isin(connected_nodes)]
-        self.edges = edges
-
-    def count_neighbors(self, edges):
-        in_neighbors = edges.groupby(["target"])["source"].unique()
-        out_neighbors = edges.groupby(["source"])["target"].unique()
-        node_neighbors = pd.DataFrame({"in": in_neighbors, "out": out_neighbors})
-
-        def merge_lists(row):
-            if row["in"] is np.nan:
-                in_set = set()
-            else:
-                in_set = set(row["in"])
-            if row["out"] is np.nan:
-                out_set = set()
-            else:
-                out_set = set(row["out"])
-            return in_set.union(out_set)
-
-        node_neighbors = node_neighbors.apply(merge_lists, axis=1)
-        neighbor_counts = node_neighbors.apply(lambda x: len(x))
-        neighbor_counts.name = "neighbor_count"
-        edges = edges.merge(neighbor_counts, how="left", left_on="target", right_index=True)
-        assert not edges["neighbor_count"].isna().any()
-        return edges
-
-    def simplify(self, nodes, edges):
-        variables = ["road_type", "lanes", "speed"]
-        indices_map = dict()
-        reverse_indices_map = defaultdict(list)
-        in_neighbors = edges.groupby(["target"])["source"].unique()
-        out_neighbors = edges.groupby(["source"])["target"].unique()
-        node_neighbors = pd.DataFrame({"in": in_neighbors, "out": out_neighbors})
-        node_neighbors.dropna(inplace=True)
-        node_neighbors = node_neighbors.apply(lambda x: set(x["in"]).union(set(x["out"])), axis=1)
-        neighbor_counts = node_neighbors.apply(lambda x: len(x))
-        node_neighbors = node_neighbors.loc[neighbor_counts == 2]
-        all_in_edges = edges.loc[edges["target"].isin(node_neighbors.index)].copy()
-        all_in_indices = all_in_edges.groupby("target").indices
-        all_out_edges = edges.loc[edges["source"].isin(node_neighbors.index)].copy()
-        all_out_indices = all_out_edges.groupby("source").indices
-        for node, neighbors in node_neighbors.items():
-            # The current node has no route choice (it is a node in the middle
-            # of a one-way or two-way road): we can remove it if the incoming
-            # and outgoing edges are similar.
-            in_indices = all_in_edges.iloc[all_in_indices[node]].index
-            out_indices = all_out_edges.iloc[all_out_indices[node]].index
-            in_indices = in_indices.map(lambda idx: indices_map.get(idx, idx))
-            out_indices = out_indices.map(lambda idx: indices_map.get(idx, idx))
-            in_edges = edges.loc[in_indices]
-            out_edges = edges.loc[out_indices]
-            neighbors = list(neighbors)
-            # Case 1.
-            in_edge = in_edges.loc[in_edges["source"] == neighbors[0]]
-            out_edge = out_edges.loc[out_edges["target"] == neighbors[1]]
-            if len(in_edge) == 1 and len(out_edge) == 1:
-                in_edge = in_edge.iloc[0]
-                out_edge = out_edge.iloc[0]
-                if (
-                    (in_edge[variables] == out_edge[variables])
-                    | (in_edge[variables].isnull() & out_edge[variables].isnull())
-                ).all():
-                    # Merge the two edges.
-                    self.merge_edges(in_edge, out_edge, edges)
-                    indices_map[out_edge.name] = in_edge.name
-                    reverse_indices_map[in_edge.name].append(out_edge.name)
-                    for old_node in reverse_indices_map[out_edge.name]:
-                        indices_map[old_node] = in_edge.name
-            # Case 2.
-            in_edge = in_edges.loc[in_edges["source"] == neighbors[1]]
-            out_edge = out_edges.loc[out_edges["target"] == neighbors[0]]
-            if len(in_edge) == 1 and len(out_edge) == 1:
-                in_edge = in_edge.iloc[0]
-                out_edge = out_edge.iloc[0]
-                if (
-                    (in_edge[variables] == out_edge[variables])
-                    | (in_edge[variables].isnull() & out_edge[variables].isnull())
-                ).all():
-                    # Merge the two edges.
-                    self.merge_edges(in_edge, out_edge, edges)
-                    indices_map[out_edge.name] = in_edge.name
-                    reverse_indices_map[in_edge.name].append(out_edge.name)
-                    for old_node in reverse_indices_map[out_edge.name]:
-                        indices_map[old_node] = in_edge.name
-        node_ids = set(edges["source"].values).union(edges["target"].values)
-        nodes = nodes.loc[nodes["id"].isin(node_ids)]
-        return (nodes, edges)
-
-    def merge_edges(self, in_edge, out_edge, edges):
-        edges.loc[in_edge.name, "length"] += out_edge["length"]
-        edges.loc[in_edge.name, "target"] = out_edge["target"]
-        edges.loc[in_edge.name, "osm_id"] = 0
-        edges.loc[in_edge.name, "neighbor_count"] = out_edge["neighbor_count"]
-        edges.loc[in_edge.name, "geometry"] = linemerge(
-            MultiLineString([in_edge["geometry"], out_edge["geometry"]])
-        )
-        assert edges.loc[in_edge.name, "geometry"].geom_type == "LineString"
-        edges.drop(index=out_edge.name, inplace=True)
-        return edges
-
-    def write_edges(self, filename):
-        self.edges.set_geometry("geometry")
-        self.edges.crs="epsg:4326"
-        self.edges = self.edges.to_crs("epsg:2154")
-        self.edges.to_pickle(filename)
-        self.edges.to_file(filename+".geojson", driver="GeoJSON", crs="epsg:2154", encoding='utf-8')
-
-    def write_nodes(self, filename):
-        self.nodes.set_geometry("geometry")
-        self.nodes.crs="epsg:4326"
-        self.nodes.to_crs("epsg:2154", inplace=True)
-        self.nodes.to_pickle(filename)
-        self.nodes.to_crs("epsg:2154").to_file(filename+".geojson", driver="GeoJSON", crs="epsg:2154", encoding='utf-8')
-
 
 if __name__ == "__main__":
 
@@ -556,15 +391,16 @@ if __name__ == "__main__":
     g.apply_file(OSM_FILE, locations=True, idx="flex_mem")
 
     print("Post-processing...")
-    g.post_process(simplify=False)
+    post_process(nodes, edges)
 
-    print("Found {} nodes and {} edges.".format(len(g.nodes), len(g.edges)))
+    print("Found {} nodes and {} edges.".format(len(nodes), len(edges)))
 
-    print("Writing edges...")
-    g.write_edges(EDGE_FILE)
+    if save:
+        print("Writing edges...")
+        write_edges(edges, EDGE_FILE)
 
-    print("Writing nodes...")
-    g.write_nodes(NODE_FILE)
+        print("Writing nodes...")
+        write_nodes(nodes, NODE_FILE)
 
     print("Done!")
 

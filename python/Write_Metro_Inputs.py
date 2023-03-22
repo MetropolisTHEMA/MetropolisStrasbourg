@@ -5,6 +5,7 @@ import json
 import numpy as np
 import pandas as pd
 import geopandas as gpd
+import itertools
 
 #%% PARAMETERS
 # Path to the directory where the node and edge files are stored.
@@ -21,7 +22,6 @@ VEHICLE_PCE = 10.0 * 1.0
 PERIOD = [3.0 * 3600.0, 10.0 * 3600.0]
 # Capacity of the different edge road types.
 CAPACITY = {
-    0: None,
     1: 2000,
     2: 2000,
     3: 1500,
@@ -92,43 +92,45 @@ PARAMETERS = {
     "random_seed": SEED,
     "network": {
         "road_network": {
-            "recording_interval": 300.0,
-            "simulated_simplification": {
-                "type": "Bound",
-                "value": 2.0,
-            },
-            "weight_simplification": {
-                "type": "Bound",
-                "value": 2.0,
-            },
-            "overlay_simplification": {
-                "type": "Bound",
-                "value": 2.0,
-            },
-            "search_space_simplification": {
-                "type": "Bound",
-                "value": 1.0,
-            },
-        }
-    },
+            "recording_interval": 300.0
+        }      },
+    "nb_threads" : 0 # default 0: uses all possible threads
+
 }
 
-#{
-# # Removing duplicate edges.
-# st_count = edges.groupby(['source_index', 'target_index'])['index'].count()
-# to_remove = set()
-# for s, t in st_count.loc[st_count > 1].index:
-#     dupl = edges.loc[(edges['source_index'] == s) & (edges['target_index'] == t)]
-#     # Keep only the edge with the smallest travel time.
-#     tt = dupl['length'] / (dupl['speed'] / 3.6)
-#     id_min = tt.index[tt.argmin()]
-#     for i in dupl.index:
-#         if i != id_min:
-#             to_remove.add(i)
-# if to_remove:
-#     print('Warning. Removing {} duplicate edges.'.format(len(to_remove)))
-#     edges.drop(labels=to_remove, inplace=True)
-#}
+
+#%% PRE_PROCESS
+def pre_preocess(nodes, edges, trips, save="GeoJSON", savedir="Metro_Input"):
+
+    #add the traveled through edges to the network:
+    # access_edges_ids = list(itertools.chain.from_iterable(trips[trips.start_access_time>0]["start_access"]))+list(itertools.chain.from_iterable(trips[trips.finish_access_time>0]["finish_access"]))
+    Used_edges_ids = set(itertools.chain.from_iterable(trips[trips["has_residential"]>0]["only_main"]))
+    Used_edges = edges.loc[edges.id.isin(Used_edges_ids)][edges.main_network]
+    Used_nodes_ids = set(Used_edges.source + Used_edges.target)
+
+    edges.loc[edges.id.isin(Used_edges_ids),"main_network"]=True
+    nodes.loc[nodes.id.isin(Used_nodes_ids),"main_network"]=True
+    
+    #After adding new edges to the main network, we need to reindex it again
+    print("Index reset")
+    nodes.reset_index(drop=True, inplace=True)
+    edges.reset_index(drop=True, inplace=True)
+    edges["id"]=edges.index
+    #edges.drop(columns="id", inplace=True)
+    node_id_map = nodes["id"].to_frame().reset_index().set_index("id")
+    nodes["id"]=nodes.index
+    edges = edges.merge(node_id_map, left_on="source", right_index=True).drop(columns=["source"]).rename(
+        columns={"index": "source"}
+    )
+    edges = edges.merge(node_id_map, left_on="target", right_index=True).drop(columns=["target"]).rename(
+        columns={"index": "target"}
+    ).sort_index()
+
+    if save != "":
+        edges.to_file(os.path.join(savedir,"metro_edges."+save), driver=save)
+        nodes.to_file(os.path.join(savedir,"metro_nodes."+save), driver=save)
+    return nodes, edges
+
 #%% GRAPH
 def generate_road_network(edges):
     print("Creating Metropolis road network")
@@ -148,10 +150,9 @@ def generate_road_network(edges):
             },
         ]
         if capacity := CAPACITY.get(row["road_type"]):
-            if ENTRY_BOTTLENECK:
-                edge[2]["bottleneck_inflow"] = capacity / 3600.0
-            if EXIT_BOTTLENECK:
-                edge[2]["bottleneck_outflow"] = capacity / 3600.0
+            
+            edge[2]["bottleneck_flow"] = capacity / 3600.0
+            
         if const_tt := CONST_TT.get(row["neighbor_count"]):
             edge[2]["constant_travel_time"] = const_tt
         metro_edges.append(edge)

@@ -208,15 +208,21 @@ trips = script3.final_trip_file(res,no_main, trips)
 trips.to_pickle(os.path.join(SHORT_PATH_DIR,"final_results"))
 
 
+
 chronos3=time.time()-chronos3
 print(f"Le script 3 a mis {chronos3/60} minutes à tourner")
 #%% 4
 # Script 4: writing_metro_inputs
 
 chronos4=time.time()
-# res = pk.load(open(os.path.join(OUTDIR_2,"treated_results"),"rb"))
-# no_main=pk.load(open(os.path.join(OUTDIR_2,"side_results"),"rb"))
+# res = pk.load(open(os.path.join(SHORT_PATH_DIR,"treated_results"),"rb"))
+# no_main=pk.load(open(os.path.join(SHORT_PATH_DIR,"side_results"),"rb"))
+# edges = pk.load(open(os.path.join(SHORT_PATH_DIR,"graph_edges"),"rb"))
+# nodes = pk.load(open(os.path.join(SHORT_PATH_DIR,"graph_nodes"),"rb"))
 # trips= pk.load(open(os.path.join(SHORT_PATH_DIR,"final_results"),"rb"))
+
+nodes,edges = script4.pre_preocess(nodes, edges, trips, savedir = METRO_INPUT_DIR)
+
 main_edges = edges[edges["main_network"]]
 
 road_network = script4.generate_road_network(main_edges)
