@@ -103,7 +103,7 @@ PARAMETERS = {
 def pre_preocess(nodes, edges, trips, save="GeoJSON", savedir="Metro_Input"):
 
     #add the traveled through edges to the network:
-    access_edges_ids = list(itertools.chain.from_iterable(trips[trips.start_access_time>0]["start_access"]))+list(itertools.chain.from_iterable(trips[trips.finish_access_time>0]["finish_access"]))
+    # access_edges_ids = list(itertools.chain.from_iterable(trips[trips.start_access_time>0]["start_access"]))+list(itertools.chain.from_iterable(trips[trips.finish_access_time>0]["finish_access"]))
     Used_edges_ids = set(itertools.chain.from_iterable(trips[trips["has_residential"]>0]["only_main"]))
     Used_edges = edges.loc[edges.id.isin(Used_edges_ids)][edges.main_network]
     Used_nodes_ids = set(Used_edges.source + Used_edges.target)

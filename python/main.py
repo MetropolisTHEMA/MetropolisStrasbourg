@@ -214,7 +214,7 @@ print(f"Le script 3 a mis {chronos3/60} minutes à tourner")
 #%% 4
 # Script 4: writing_metro_inputs
 
-# chronos4=time.time()
+chronos4=time.time()
 # res = pk.load(open(os.path.join(SHORT_PATH_DIR,"treated_results"),"rb"))
 # no_main=pk.load(open(os.path.join(SHORT_PATH_DIR,"side_results"),"rb"))
 # edges = pk.load(open(os.path.join(SHORT_PATH_DIR,"graph_edges"),"rb"))
