@@ -1,0 +1,170 @@
+
+#############################################################################
+Run:
+  Generate Inputs: True
+  Write Metropolis Inputs: True
+  Run Metropolis: True
+
+#############################################################################
+Generate Inputs:
+  Generator_outdir: Load_Outputs
+  CRS : EPSG:2154
+  # Metric projection for France: EPSG:2154
+
+  Network import:
+       Import Method: OSM
+
+       OSM_FILE : Load_Inputs/alsace-latest.osm.pbf
+      # Download the pbf filesfrom the modelised region from Geofabrik.de
+       OSM zone buffer: 50
+      # The speed limit is different for urban and non-urban area (in france), we add a buffer to the areas
+
+
+       Road_import_info.csv: RoadTypes.csv
+       sep : ;
+      # Information of the roads considered on the maain/residential network
+      # + Roads connected (higways can no be joined from anywhere)
+      # + Graph edges information -> speed, lanes, id, capacity, etc..
+      # /!\ Csv separator ( ; for french and , in english)
+
+       Save: True
+      #Indicate if you want a save (without driver, only a temp GeoDataFrame)
+       Driver : GeoJSON
+      # Indicates if you want a saved format as well
+
+  O-D Matrix: 
+       TRIP_FILE : Load_Inputs/strasbourg_trips.gpkg #or .csv (see the pretreatment method in that case)
+      # Trips file obtained from the Equasim model (https://github.com/eqasim-org/ile-de-france)
+      
+       PERIOD : [10800 , 36000] #3*3600 and 10*3600
+      # Time period filtered on the Trips file, expressed in seconds,here from 3 to 10 am
+
+       MODES : 
+                - car
+                # - car_passenger
+                # - pt
+                # - walk
+                # - bike
+      # There are 5 available modes from the Equasim model
+      
+       ShortetPath :
+                 Parameters : {"algorithm": "TCH", "output_route": true}
+                # Connection shortestpath parameters, leave as DEFAULT for now
+                #DEFAULT : {"algorithm": "TCH", "output_route": True}
+
+                 ScriptPath : C:\Users\theot\OneDrive\TheseMaster\Models\Metropolis\Rust\0.3.1\execs\compute_travel_times.exe
+                # Path to the shortestpath script, leave .exe on Windows, remove on Linux and MacOS
+      
+       PostProcess : 
+                 Penalty: 5 #seconds of traveltime  
+
+                 Type: DEFAULT #Transfroms the traveled residential edges of the network into main edges.
+                       #DISSCONNECT #Removes the parts of the main network now disconnected on the main only network
+
+                 Save : GeoJSON
+                 #Input the type of the saved file, leave as False if no
+
+
+  # Leave as DEFAULT for now
+############################################################################
+############################################################################
+Write Metropolis Inputs:
+    Writer_outdir : Metro_Inputs
+    RANDOM_SEED: 1234   # random seed used in both in Agents and Parameters
+    SAMPLE: 1           # % of agents considered, the vehicle size is modified accordingly
+    Pre Sampled: False  # Put as True if your trips are already a sample population
+
+    ## Don't specify the files if you run Generate Inputs -> forces a useless reload
+    ## IF YOU HAVE YOUR OUTPUT ALREADY GENERATED -> Either (Geo)Pandas inpouts or pickle files
+    From Files:
+        TRIPS_FILE : Load_Outputs/metro_trips.csv
+        sep: ","
+
+        EDGES_FILE : Load_Outputs/metro_edges.GeoJSON
+        driver : GeoJSON  #Remove this line if reading pickle file
+
+    Agents:
+        #Agents parameters: 
+        ALPHA : 15.0
+        # Value of time in the car, in euros / hour.
+        BETA : 7.5
+        # Value of arriving early at destination, in euros / hour.
+        GAMMA : 30.0
+        # Value of arriving late at destination, in euros / hour.
+        DELTA : 0.0
+        # Time window for on-time arrival, in seconds.
+        DT_MU : 3.0
+        # Value of μ for the departure-time model (if ENDOGENOUS_DEPARTURE_TIME is True).
+        ENDOGENOUS DEPARTURE TIME: False
+        # If true, the agents will only make route choice, but no departure time choice
+        T_STAR_FUNC : DEFAULT
+        # How t* is computed given the observed arrival time. 
+        # DEFAULT => Identity
+        # More options to be tested later
+
+    Road_Network:
+        Graph:   
+            #DEFAULT => takes the capacity from RoadTypes.csv
+            CONST_TT : DEFAULT
+            #DEFAULT => 0
+            #NEIGHBOURS => Based on edges neighbours: add file ConsTT.csv
+
+        Vehicles :
+            VEHICLE_LENGTH : 10.0
+            # Vehicle passenger-car equivalent.
+            VEHICLE_PCE : 1.0
+            # Passenger Car Equivalent
+        #OR
+            # VehiclesInfoFile : Vehicles.csv
+            # sep = ;
+            ## In case there are multiple types of vehicles
+
+
+    Parameters: 
+
+        period : [10800 , 36000] #3*3600 and 10*3600
+        # Time period filtered on the Trips file, expressed in seconds,here from 3 to 10 am
+
+        init_iteration_counter": 1
+        # can be set to another if restarting from previous runs
+        # or a day-to-day simulation
+
+        learning_model: 
+            type: Exponential
+            value: 
+                alpha: 0.99
+          # % of anticipated congestion and just observerd congestion accounted for learning
+          
+        stopping_criteria: 
+           - type: MaxIteration
+             value: 5
+          #MaxIteration or DepartureTimeShift (see in the Metropolis book)
+          #  - type: DepartureTime
+          #    value: [0.01, 100,0]
+        
+        update_ratio: 1.0
+        # % of agents allowed to change their route / departure time each day (if less than 1, randomly selected after each iteration)
+
+        network: 
+            road_network: 
+                recording_interval: 300.0 
+                #Frequency of travel time recording per edge
+        #other networks might come in the future
+
+        nb_threads : 0 
+        # default 0: uses all possible threads
+
+        sample: 1
+        # % of agents considered, the vehicle size is modified accordingly
+        
+        random_seed: 1234
+        # random seed used in both in Agents and Parameters
+    
+############################################################################
+############################################################################
+Run Metro:
+    Run_outdir: Metro_Outputs
+    Run_indir: Metro_Inputs
+
+    Script_location: C:\Users\theot\OneDrive\TheseMaster\Models\Metropolis\python\MetropolisStrasbourg\loader\scripts\metropolis.exe
+############################################################################
